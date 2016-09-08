@@ -60,6 +60,9 @@
 
 			this.xvel = 0;
 			this.yvel = 0;
+
+			this.firetype = 0;
+			this.sheild = 0;
 		}
 
 		updateHealth( add ){
@@ -71,6 +74,12 @@
 
 		drawShip(){
 			ctx.beginPath();
+			if( this.sheild == 1 ){
+				ctx.fillStyle="#00BFFF";
+				ctx.ellipse(this.x+this.width/2, this.y+this.height/2, this.width/3*2, this.height/3*2, 0, 0, 2 * Math.PI);
+				ctx.fill();
+
+			}
 			ctx.fillStyle="#000000";
 			ctx.fillRect( this.x, this.y, this.width, this.height );
 			ctx.stroke();
@@ -126,7 +135,7 @@
 
 		drawEnemy(){
 			ctx.beginPath();
-			ctx.fillStyle = "#ffa500";
+			ctx.fillStyle = "#FF66FF";
 			ctx.fillRect( this.x, this.y, this.width, this.height );
 			ctx.stroke();
 		}
@@ -138,6 +147,33 @@
 		// setInterval(fire,this.firespeed);
 	}
 
+	class powerUp{
+		constructor(exists,x,y,xvel,value){
+			this.exists = exists;
+			this.x = x;
+			this.y = y;
+			this.xvel = xvel;
+			this.yvel = 0;
+			this.value = value;
+
+			this.width = 10;
+			this.height = 10;
+		}
+
+		updatePosition(){
+			var newx = this.x + this.xvel;
+			var newy = this.y + this.yvel;
+			this.y = newy;
+			this.x = newx;
+		}
+
+		drawPowerUp(){
+			ctx.beginPath();
+			ctx.fillStyle = "#ffa500";
+			ctx.fillRect(this.x, this.y, this.width, this.height);
+			ctx.stroke();
+		}
+	}
 
 
 	var canvas = document.getElementById("myCanvas");
@@ -218,13 +254,35 @@
 
 	function fire(){
 		var newBullet = new bullet(myShip.x+myShip.width, myShip.y+myShip.height/2, 2 , 0,0);
+		if( myShip.firetype == 1 ){
+			var newBullet2 = new bullet(myShip.x+myShip.width, myShip.y+myShip.height/2, 2 , -1,0);
+			var newBullet3 = new bullet(myShip.x+myShip.width, myShip.y+myShip.height/2, 2 , 1,0);
+			myBullets.push(newBullet2);
+			myBullets.push(newBullet3);
+		}
 		myBullets.push(newBullet);
 	}
-
 
 	// collision taken from here
 	// https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection
 	function checkCollisions(){
+		if( powerUps.exists != 0 ){
+			if (myShip.x < powerUps.x + powerUps.width && 
+				myShip.x + myShip.width > powerUps.x && 
+				myShip.y < powerUps.y + powerUps.height && 
+				myShip.height + myShip.y > powerUps.y) {
+				console.log("collided with power up");
+					if( powerUps.value == 0 ){
+						myShip.firetype = 1;
+						console.log("added firetype");
+					}
+					else{
+						myShip.sheild = 1;
+						console.log("added shield");
+					}
+					powerUps.exists = 0;
+			}
+		}
 		for( var i = 0 ; i < myBullets.length ; i++ ){
 			for( var j = 0; j < enemies.length ; j++ ){
 				if( myBullets[i] && enemies[j] ){
@@ -248,7 +306,13 @@
 				myShip.y < enemies[i].y + enemies[i].height && 
 				myShip.height + myShip.y > enemies[i].y) {
 					// collision between ship and enemy
-					myShip.health -= 1;
+					if( myShip.sheild == 1 ){
+						myShip.sheild = 0;
+					} 
+					else{
+						myShip.health -= 1;
+						myShip.firetype = 0;
+					}
 					delete enemies[i];
 			}
 		}
@@ -260,7 +324,13 @@
 				myShip.y < bullets[i].y + bullets[i].height && 
 				myShip.height + myShip.y > bullets[i].y) {
 					// collision between ship and enemy bullet
-					myShip.health -= 1;
+					if( myShip.sheild == 1 ){
+						myShip.sheild = 0;
+					} 
+					else{
+						myShip.health -= 1;
+						myShip.firetype = 0;
+					}
 					delete bullets[i];
 			}
 		}
@@ -278,6 +348,14 @@
 	}
 
 	function drawBullets(){
+		if( powerUps.exists != 0){
+			console.log("drawing power up");
+			powerUps.drawPowerUp();
+			powerUps.updatePosition();
+			if( powerUps.x + powerUps.width < 0 ){
+				powerUps.exists = 0;
+			}
+		}
 		for( var i = 0 ; i < myBullets.length ; i++ ){
 			myBullets[i].drawBullet();
 			myBullets[i].updatePosition();
@@ -313,7 +391,7 @@
 	var numcalls = 0;
 	function createEnemies(){
 		numcalls += 1;
-		var numenemies = 3;
+		var numenemies = getRandomInt(2,6);
 		var startpoint = getRandomInt(0,225);
 		var yvel = 0;
 		if( numcalls > 2 ){
@@ -336,6 +414,17 @@
 	}
 	var enemyFireInterval = setInterval(enemyFire,2000);
 
+	// exists,x,y,xvel,value)
+	var powerUps = new powerUp(0,canvas.width,getRandomInt(0,canvas.height/8*7),-1,getRandomInt(0,1));
+
+	function createPowerUp(){
+		powerUps.exists = 1;
+		powerUps.x = canvas.width;
+		powerUps.y = getRandomInt(0,canvas.height/12*11);
+		powerUps.value = getRandomInt(0,1);
+	}
+	var createPowerUpInterval = setInterval(createPowerUp,10000);
+
 	function gameOver(){
 		console.log("Game Over");
 		ctx.beginPath();
@@ -346,6 +435,7 @@
 		clearInterval(drawInterval);
 		clearInterval(createEnemiesInterval);
 		clearInterval(enemyFireInterval);
+		clearInterval(createPowerUpInterval);
 	}
 
 	function draw() {
